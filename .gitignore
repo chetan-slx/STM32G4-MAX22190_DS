@@ -1,0 +1,13 @@
+# Build folders
+Debug/
+Release/
+build/
+
+# Object files
+*.o
+*.d
+
+# Output binaries
+*.elf
+*.hex
+*.bin
