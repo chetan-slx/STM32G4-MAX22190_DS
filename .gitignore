@@ -7,6 +7,9 @@ build/
 *.o
 *.d
 
+# STM32CubeIDE
+.settings/
+
 # Output binaries
 *.elf
 *.hex
