@@ -151,16 +151,7 @@ MAX22190_Status_t MAX22190_CheckCRC(const uint8_t *data)
 MAX22190_Status_t MAX22190_ClearPORFault(MAX22190_Device_t *dev) {
 	HAL_StatusTypeDef status;
 
-	status = MAX22190_ReadRegister(dev, MAX22190_FAULT1_ADDR);
-	if (status != HAL_OK)
-	{
-		return status;
-	}
-
-	dev->regs.FAULT1.dataByte = MAX22190_RxBuffer[1];
-	dev->regs.FAULT1.bits.POR_FAULT = 0;
-
-	status = MAX22190_WriteRegister(dev, MAX22190_FAULT1_ADDR, dev->regs.FAULT1.dataByte);
+	status = MAX22190_WriteRegister(dev, MAX22190_FAULT1_ADDR, 0x00);
 	if (status != HAL_OK)
 	{
 		return status;
@@ -282,38 +273,38 @@ void MAX22190_CheckFaultStatus(MAX22190_Device_t *dev) {
 	}
 }
 
-MAX22190_Status_t MAX22190_Read_FAULT1(MAX22190_Device_t *dev) {
+MAX22190_Status_t MAX22190_Read_FAULT1(MAX22190_Device_t *dev, uint8_t *fault_data) {
 	HAL_StatusTypeDef hal_status = MAX22190_ReadRegister(dev, MAX22190_FAULT1_ADDR);
 	if (hal_status != HAL_OK)
 	{
 		return MAX22190_ERROR;
 	}
 
-	dev->regs.FAULT1.dataByte = MAX22190_RxBuffer[1];
+	*fault_data = MAX22190_RxBuffer[1];
 
 	return MAX22190_OK;
 }
 
-MAX22190_Status_t MAX22190_Read_FAULT2(MAX22190_Device_t *dev) {
+MAX22190_Status_t MAX22190_Read_FAULT2(MAX22190_Device_t *dev, uint8_t *fault_data) {
 	HAL_StatusTypeDef hal_status = MAX22190_ReadRegister(dev, MAX22190_FAULT2_ADDR);
 	if (hal_status != HAL_OK)
 	{
 		return MAX22190_ERROR;
 	}
 
-	dev->regs.FAULT2.dataByte = MAX22190_RxBuffer[1];
+	*fault_data = MAX22190_RxBuffer[1];
 
 	return MAX22190_OK;
 }
 
-MAX22190_Status_t MAX22190_Read_WB(MAX22190_Device_t *dev) {
+MAX22190_Status_t MAX22190_Read_WB(MAX22190_Device_t *dev, uint8_t *WB_data) {
 	HAL_StatusTypeDef hal_status = MAX22190_ReadRegister(dev, MAX22190_WB_ADDR);
 	if (hal_status != HAL_OK)
 	{
 		return MAX22190_ERROR;
 	}
 
-	dev->regs.WB.dataByte = MAX22190_RxBuffer[1];
+	*WB_data = MAX22190_RxBuffer[1];
 
 	return MAX22190_OK;
 }

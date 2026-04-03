@@ -86,7 +86,6 @@ typedef struct {
  */
 typedef struct {
     SPI_HandleTypeDef     *hspi;
-    MAX22190_Registers_s  regs;
     MAX22190_GPIO_t       CS_Pin;
     MAX22190_GPIO_t       Fault_Pin;
     uint8_t               DB_Index;
@@ -632,7 +631,7 @@ void MAX22190_CheckFaultStatus(MAX22190_Device_t *dev);
  * @example      Insert Examples for Implementation or Usage of the Function
  *              Here or provide links
  */
-MAX22190_Status_t MAX22190_Read_FAULT1(MAX22190_Device_t *dev);
+MAX22190_Status_t MAX22190_Read_FAULT1(MAX22190_Device_t *dev, uint8_t *fault_data);
 
 /**
  * @name        MAX22190_Read_FAULT2
@@ -669,7 +668,7 @@ MAX22190_Status_t MAX22190_Read_FAULT1(MAX22190_Device_t *dev);
  * @example      Insert Examples for Implementation or Usage of the Function
  *              Here or provide links
  */
-MAX22190_Status_t MAX22190_Read_FAULT2(MAX22190_Device_t *dev);
+MAX22190_Status_t MAX22190_Read_FAULT2(MAX22190_Device_t *dev, uint8_t *fault_data);
 
 /**
  * @name        MAX22190_Read_WB
@@ -706,7 +705,7 @@ MAX22190_Status_t MAX22190_Read_FAULT2(MAX22190_Device_t *dev);
  * @example      Insert Examples for Implementation or Usage of the Function
  *              Here or provide links
  */
-MAX22190_Status_t MAX22190_Read_WB(MAX22190_Device_t *dev);
+MAX22190_Status_t MAX22190_Read_WB(MAX22190_Device_t *dev, uint8_t *WB_data);
 
 /**
  * @name        MAX22190_ReadDigitalInputs
