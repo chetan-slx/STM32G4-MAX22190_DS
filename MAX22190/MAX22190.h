@@ -89,9 +89,10 @@ typedef struct {
     MAX22190_Registers_s  regs;
     MAX22190_GPIO_t       CS_Pin;
     MAX22190_GPIO_t       Fault_Pin;
-    uint8_t               DI_Status;
     uint8_t               DB_Index;
-    bool                  faultFlag;
+    volatile uint8_t      DI_Status;
+    volatile bool         faultFlag;
+    volatile bool         CrcError;
 } MAX22190_Device_t;
 
 /*******************************************************************************
@@ -335,7 +336,7 @@ MAX22190_Status_t MAX22190_ConfigureChannels(MAX22190_Device_t *dev, uint8_t cha
  * @example      Insert Examples for Implementation or Usage of the Function
  *              Here or provide links
  */
-MAX22190_Status_t MAX22190_CheckCRC(uint8_t *RxBuffer);
+MAX22190_Status_t MAX22190_CheckCRC(const uint8_t *data);
 
 /**
  * @name        MAX22190_ClearPORFault

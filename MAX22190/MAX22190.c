@@ -28,8 +28,8 @@
 /*******************************************************************************
  **************************** Private Includes *********************************
  ******************************************************************************/
+#include "MAX22190_CRC.h"
 #include "MAX22190.h"
-#include "5bit_CRC.h"
 #include "string.h"
 
 /*******************************************************************************
@@ -69,10 +69,9 @@ void MAX22190_InitDevice(MAX22190_Device_t *dev,
     dev->CS_Pin.pin_number = CS_GPIO->pin_number;
     dev->Fault_Pin.port = Fault_GPIO->port;
     dev->Fault_Pin.pin_number = Fault_GPIO->pin_number;
+    dev->DB_Index = DB_index;
     dev->faultFlag = false;
-
-    // Clear POR bit
-	MAX22190_ClearPORFault(dev);
+    dev->CrcError = false;
 }
 
 MAX22190_Status_t MAX22190_WriteRegister(MAX22190_Device_t *dev,
@@ -83,7 +82,7 @@ MAX22190_Status_t MAX22190_WriteRegister(MAX22190_Device_t *dev,
 	MAX22190_TxBuffer[1] = data;
 	MAX22190_TxBuffer[2] = 0x00;
 
-	uint8_t crc = calculate_crc5(MAX22190_TxBuffer);
+	uint8_t crc = MAX22190_CalculateCRC(MAX22190_TxBuffer);
 	MAX22190_TxBuffer[2] = crc & 0x1F;
 
 	MAX22190_CS_Select(dev);
@@ -105,7 +104,7 @@ MAX22190_Status_t MAX22190_ReadRegister(MAX22190_Device_t *dev,
 	MAX22190_TxBuffer[1] = 0x00;
 	MAX22190_TxBuffer[2] = 0x00;
 
-	uint8_t crc = calculate_crc5(MAX22190_TxBuffer);
+	uint8_t crc = MAX22190_CalculateCRC(MAX22190_TxBuffer);
 	MAX22190_TxBuffer[2] = crc & 0x1F;
 
 	MAX22190_CS_Select(dev);
@@ -121,14 +120,32 @@ MAX22190_Status_t MAX22190_ReadRegister(MAX22190_Device_t *dev,
     return MAX22190_CheckCRC(MAX22190_RxBuffer);
 }
 
-MAX22190_Status_t MAX22190_CheckCRC(uint8_t *RxBuffer) {
-    uint8_t expected_crc = calculate_crc5(RxBuffer) & 0x1F;
-    uint8_t received_crc = RxBuffer[2] & 0x1F;
-    if (expected_crc != received_crc) {
-    	return MAX22190_ERROR;
+/**
+ * Verify CRC of a received 24-bit SDO frame.
+ * SDO frame: [Input data(8b)] [Reg/WB data(8b)] [24VL|24VM|WBG(3b)] [CRC(5b)]
+ *
+ * @param sdo   3-byte received frame [byte2, byte1, byte0]
+ * @return      1 if CRC valid, 0 if mismatch
+ */
+MAX22190_Status_t MAX22190_CheckCRC(const uint8_t *data)
+{
+    /* Extract the received CRC from lower 5 bits of byte 0 */
+    uint8_t received_crc = data[2] & 0x1F;
+
+    /* Zero out the CRC field, keep the 3 fill bits as-is (they are 0) */
+    uint8_t frame_for_calc[3];
+    frame_for_calc[0] = data[0];
+    frame_for_calc[1] = data[1];
+    frame_for_calc[2] = data[2] & 0xE0;   /* clear lower 5 bits, preserve upper 3 */
+
+    /* Recalculate CRC */
+    uint8_t calc_crc = MAX22190_CalculateCRC(frame_for_calc);
+
+    if (calc_crc == received_crc) {
+    	return MAX22190_OK;
     }
 
-    return MAX22190_OK;
+    return MAX22190_ERROR;
 }
 
 MAX22190_Status_t MAX22190_ClearPORFault(MAX22190_Device_t *dev) {
@@ -157,7 +174,7 @@ MAX22190_Status_t MAX22190_ReadInputs_DMA(MAX22190_Device_t *dev) {
 	MAX22190_TxBuffer[1] = 0x00;
 	MAX22190_TxBuffer[2] = 0x00;
 
-	uint8_t crc = calculate_crc5(MAX22190_TxBuffer);
+	uint8_t crc = MAX22190_CalculateCRC(MAX22190_TxBuffer);
 	MAX22190_TxBuffer[2] = crc & 0x1F;
 
 	MAX22190_CS_Select(dev);
