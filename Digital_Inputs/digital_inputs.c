@@ -22,6 +22,10 @@ volatile bool DI_ReadyToRead    = false;
 volatile bool DI_ReadyToProcess = false;
 volatile bool DI_CrcError       = false;
 
+MAX22190_WB_REG_u WB;
+MAX22190_FAULT1_REG_u F1;
+MAX22190_FAULT2_REG_u F2;
+
 /**
  * @name        DigitalInput_Deselect_all_CS
  *
@@ -178,7 +182,6 @@ static void DigitalInputs_Config(void)
 {
 	MAX22190_FAULT2EN_REG_u FAULT2EN;
 	MAX22190_FAULT1EN_REG_u FAULT1EN;
-	MAX22190_CFG_REG_u CFG;
 
 	// ----------------------------------------------------------------------
 	// Device 1 Config
@@ -197,18 +200,15 @@ static void DigitalInputs_Config(void)
 	MAX22190_ConfigureInputFilter(&DI_Devices[0], MAX22190_FLT8_ADDR, FILTER_DELAY_20000us, USE_IN_FLT, WIRE_BREAK_ENABLED);
 
 	// Config Fault Enables
-	FAULT2EN.dataByte = 0x3F;
-	MAX22190_ConfigureFault2EN(&DI_Devices[0], FAULT2EN.dataByte);
-
 	FAULT1EN.dataByte = 0xC0;
-	FAULT1EN.bits.FAULT2_EN = 1;
-	FAULT1EN.bits.VL_24_EN = 1;
+	FAULT1EN.bits.WBG_EN = 1;
 	FAULT1EN.bits.VM_24_EN = 1;
+	FAULT1EN.bits.VL_24_EN = 1;
+	FAULT1EN.bits.FAULT2_EN = 1;
 	MAX22190_ConfigureFault1EN(&DI_Devices[0], FAULT1EN.dataByte);
 
-	CFG.dataByte = 0x00;
-	CFG.bits.VF_24 = 1;
-	MAX22190_ConfigureCFG(&DI_Devices[0], CFG.dataByte);
+	FAULT2EN.dataByte = 0x3F;
+	MAX22190_ConfigureFault2EN(&DI_Devices[0], FAULT2EN.dataByte);
 
 	// Enable Fault pin sticky
 //	MAX22190_EnableFaultPinSticky(&DI_Devices[0]);
@@ -230,18 +230,15 @@ static void DigitalInputs_Config(void)
 	MAX22190_ConfigureInputFilter(&DI_Devices[1], MAX22190_FLT8_ADDR, FILTER_DELAY_20000us, USE_IN_FLT, WIRE_BREAK_ENABLED);
 
 	// Config Fault Enables
-	FAULT2EN.dataByte = 0x3F;
-	MAX22190_ConfigureFault2EN(&DI_Devices[1], FAULT2EN.dataByte);
-
 	FAULT1EN.dataByte = 0xC0;
-	FAULT1EN.bits.FAULT2_EN = 1;
-	FAULT1EN.bits.VL_24_EN = 1;
+	FAULT1EN.bits.WBG_EN = 1;
 	FAULT1EN.bits.VM_24_EN = 1;
+	FAULT1EN.bits.VL_24_EN = 1;
+	FAULT1EN.bits.FAULT2_EN = 1;
 	MAX22190_ConfigureFault1EN(&DI_Devices[1], FAULT1EN.dataByte);
 
-	CFG.dataByte = 0x00;
-	CFG.bits.VF_24 = 1;
-	MAX22190_ConfigureCFG(&DI_Devices[1], CFG.dataByte);
+	FAULT2EN.dataByte = 0x3F;
+	MAX22190_ConfigureFault2EN(&DI_Devices[1], FAULT2EN.dataByte);
 
 	// Enable Fault pin sticky
 //	MAX22190_EnableFaultPinSticky(&DI_Devices[1]);
@@ -253,10 +250,11 @@ void DigitalInput_ReadInputTest(void) {
 }
 
 void DigitalInput_ReadFaultTest(void) {
-	MAX22190_Device_t *dev = &DI_Devices[DI_DeviceIndex];
-	MAX22190_Read_FAULT1(dev);
-	MAX22190_Read_FAULT2(dev);
-	MAX22190_Read_WB(dev);
+	// read faults
+	uint8_t dev_index = 0;
+	MAX22190_Read_WB(&DI_Devices[dev_index], &WB.dataByte);
+	MAX22190_Read_FAULT1(&DI_Devices[dev_index], &F1.dataByte);
+	MAX22190_Read_FAULT2(&DI_Devices[dev_index], &F2.dataByte);
 }
 
 void DigitalInput_CrcErrorTest(void) {
@@ -332,8 +330,6 @@ static void DigitalInput_UpdateDatabase(void) {
 		uint8_t dev_DI_status = dev->DI_Status;
 		DI_DB[dev_DI_idx] = dev_DI_status;
 	}
-//	DI_DB[0] = DI_Devices[0].DI_Status;
-//	DI_DB[1] = DI_Devices[1].DI_Status;
 }
 
 void DigitalInput_CheckFaultStatus(void) {
@@ -351,23 +347,7 @@ void DigitalInput_CheckFaultStatus(void) {
 }
 
 void DigitalInput_ReadFaults(void) {
-	for (int i = 0; i < NUM_DI_DEVICES; i++) {
-		MAX22190_Device_t *dev = &DI_Devices[i];
-		if (dev->faultFlag == true)
-		{
-			MAX22190_Read_FAULT1(dev);
-			MAX22190_Read_FAULT2(dev);
-			MAX22190_Read_WB(dev);
-		}
-	}
-}
-
-void DigitalInput_VerifyConfiguration(void) {
-	MAX22190_Device_t *dev = &DI_Devices[DI_DeviceIndex];
-	MAX22190_ReadRegister(dev, MAX22190_FAULT1EN_ADDR);
-	MAX22190_ReadRegister(dev, MAX22190_FAULT2EN_ADDR);
-	MAX22190_ReadRegister(dev, MAX22190_CFG_ADDR);
-	MAX22190_ReadRegister(dev, MAX22190_GPO_ADDR);
+	// read faults
 }
 
 bool DigitalInput_IsOK(void) {
