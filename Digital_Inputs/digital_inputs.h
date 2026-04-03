@@ -15,7 +15,7 @@
  * @brief
  *
  */
-#define NUM_DI_DEVICES 1
+#define NUM_DI_DEVICES 2
 
 /**
  * @def DI_SPI
@@ -30,6 +30,27 @@
  *
  */
 extern volatile bool DI_FaultFlag;
+
+/**
+ * @var DI_ReadyToRead
+ * @brief
+ *
+ */
+extern volatile bool DI_ReadyToRead;
+
+/**
+ * @var DI_ReadyToProcess
+ * @brief
+ *
+ */
+extern volatile bool DI_ReadyToProcess;
+
+/**
+ * @var DI_CrcError
+ * @brief
+ *
+ */
+extern volatile bool DI_CrcError;
 
 /**
  * @name        DigitalInput_Init
@@ -251,7 +272,7 @@ void DigitalInput_ReadFaultTest(void);
  * @example      Insert Examples for Implementation or Usage of the Function
  *              Here or provide links
  */
-void DigitalInput_ReadFaults(MAX22190_Device_t *dev);
+void DigitalInput_ReadFaults(void);
 
 /**
  * @name        DigitalInput_CrcErrorTest
@@ -399,6 +420,6 @@ void DigitalInput_DMA_ReadCompleteCallback(SPI_HandleTypeDef *hspi);
  * @example      Insert Examples for Implementation or Usage of the Function
  *              Here or provide links
  */
-bool DigitalInput_HasFault(void);
+bool DigitalInput_IsOK(void);
 
 #endif /* MAX22190_DIGITAL_INPUTS_H_ */

@@ -18,8 +18,9 @@ volatile uint8_t DI_DB[NUM_DI_DEVICES] = {0};
 volatile uint8_t DI_DeviceIndex = 0;
 
 volatile bool DI_FaultFlag      = false;
-volatile bool DI_ReadyToRead    = false;   // DI device ready to read inputs in DMA
-volatile bool DI_ReadyToProcess = false;   // All DI devices data ready to process
+volatile bool DI_ReadyToRead    = false;
+volatile bool DI_ReadyToProcess = false;
+volatile bool DI_CrcError       = false;
 
 /**
  * @name        DigitalInput_Deselect_all_CS
@@ -151,13 +152,20 @@ void DigitalInput_Init(void) {
 	MX_SPI3_Init();
 
 	// Enable SPI register callback
-	HAL_SPI_RegisterCallback(&hspi3, HAL_SPI_TX_RX_COMPLETE_CB_ID, DigitalInput_DMA_ReadCompleteCallback);
+	HAL_SPI_RegisterCallback(&DI_SPI, HAL_SPI_TX_RX_COMPLETE_CB_ID, DigitalInput_DMA_ReadCompleteCallback);
+
+	// Init DI devices
+	MAX22190_InitDevice(&DI_Devices[0], &DI_SPI, &DS1_cs_gpio, &DS1_fault_gpio, 0);
+	MAX22190_InitDevice(&DI_Devices[1], &DI_SPI, &DS2_cs_gpio, &DS2_fault_gpio, 1);
 
 	// Deselect all CS
 	DigitalInput_Deselect_all_CS();
 
-	// Init DI devices
-	MAX22190_InitDevice(&DI_Devices[0], &DI_SPI, &DS1_cs_gpio, &DS1_fault_gpio, 0);
+	// Clear POR bit
+	MAX22190_ClearPORFault(&DI_Devices[0]);
+
+	// Clear POR bit
+	MAX22190_ClearPORFault(&DI_Devices[1]);
 
 	// Config DI devices
 	DigitalInputs_Config();
@@ -171,6 +179,7 @@ static void DigitalInputs_Config(void)
 	MAX22190_FAULT2EN_REG_u FAULT2EN;
 	MAX22190_FAULT1EN_REG_u FAULT1EN;
 	MAX22190_CFG_REG_u CFG;
+
 	// ----------------------------------------------------------------------
 	// Device 1 Config
 	// ----------------------------------------------------------------------
@@ -239,8 +248,7 @@ static void DigitalInputs_Config(void)
 }
 
 void DigitalInput_ReadInputTest(void) {
-	MAX22190_Device_t *dev = &DI_Devices[DI_DeviceIndex];
-	// Read digital inputs
+	MAX22190_Device_t *dev = &DI_Devices[1];
 	MAX22190_ReadDigitalInputs(dev);
 }
 
@@ -276,13 +284,11 @@ void Read_DigitalInput_DMA(void) {
 			if (MAX22190_CheckCRC(MAX22190_RxBuffer) == MAX22190_OK)
 			{
 				DI_Devices[DI_DeviceIndex - 1].DI_Status = MAX22190_RxBuffer[1];
+				DI_Devices[DI_DeviceIndex - 1].CrcError = false;
 			}
 			else {
-				DI_FaultFlag = true;
+				DI_Devices[DI_DeviceIndex - 1].CrcError = true;
 			}
-
-			// Next device to read
-			DI_DeviceIndex++;
 
 			if (DI_DeviceIndex < NUM_DI_DEVICES)
 			{
@@ -293,6 +299,14 @@ void Read_DigitalInput_DMA(void) {
 				DI_DeviceIndex = 0;
 				DigitalInput_UpdateDatabase();
 				DI_ReadyToProcess = true;
+
+				// Check for CRC Errors in all devices
+				for (int i = 0; i < NUM_DI_DEVICES; i++) {
+					MAX22190_Device_t *dev = &DI_Devices[i];
+					if (dev->CrcError == true) {
+						DI_CrcError = true;
+					}
+				}
 			}
 		}
 	}
@@ -302,7 +316,9 @@ void DigitalInput_DMA_ReadCompleteCallback(SPI_HandleTypeDef *hspi) {
 
 	if (hspi->Instance == DI_SPI.Instance)
 	{
-		MAX22190_CS_Deselect(&DI_Devices[DI_DeviceIndex]);
+		DigitalInput_Deselect_all_CS();
+
+		DI_DeviceIndex++;
 
 		// Update the flag
 		DI_ReadyToRead = true;
@@ -312,8 +328,12 @@ void DigitalInput_DMA_ReadCompleteCallback(SPI_HandleTypeDef *hspi) {
 static void DigitalInput_UpdateDatabase(void) {
 	for (int i = 0; i < NUM_DI_DEVICES; i++) {
 		MAX22190_Device_t *dev = &DI_Devices[i];
-		DI_DB[dev->DB_Index] = dev->DI_Status;
+		uint8_t dev_DI_idx = dev->DB_Index;
+		uint8_t dev_DI_status = dev->DI_Status;
+		DI_DB[dev_DI_idx] = dev_DI_status;
 	}
+//	DI_DB[0] = DI_Devices[0].DI_Status;
+//	DI_DB[1] = DI_Devices[1].DI_Status;
 }
 
 void DigitalInput_CheckFaultStatus(void) {
@@ -330,7 +350,7 @@ void DigitalInput_CheckFaultStatus(void) {
 	DI_FaultFlag = tempFaultFlag;
 }
 
-void DigitalInput_ReadFaults(MAX22190_Device_t *dev) {
+void DigitalInput_ReadFaults(void) {
 	for (int i = 0; i < NUM_DI_DEVICES; i++) {
 		MAX22190_Device_t *dev = &DI_Devices[i];
 		if (dev->faultFlag == true)
@@ -342,69 +362,6 @@ void DigitalInput_ReadFaults(MAX22190_Device_t *dev) {
 	}
 }
 
-//void DigitalInput_HandleFault(MAX22190_Device_t *dev) {
-//	uint8_t fault1_status = dev->regs.FAULT1.dataByte;
-//	uint8_t fault2_status = dev->regs.FAULT2.dataByte;
-//
-//	if (fault1_status == 0) return;
-//
-//	if (fault1_status & MAX22190_FAULT1_WBG)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_24VM)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_24VL)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_ALRMT1)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_ALRMT2)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_POR)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_CRC)
-//	{
-//		// do something
-//	}
-//	if (fault1_status & MAX22190_FAULT1_FAULT2)
-//	{
-//		if (fault2_status & MAX22190_FAULT2_RFWBS)
-//		{
-//			// do something
-//		}
-//		if (fault2_status & MAX22190_FAULT2_RFWBO)
-//		{
-//			// do something
-//		}
-//		if (fault2_status & MAX22190_FAULT2_RFDIS)
-//		{
-//			// do something
-//		}
-//		if (fault2_status & MAX22190_FAULT2_RFDIO)
-//		{
-//			// do something
-//		}
-//		if (fault2_status & MAX22190_FAULT2_OTSHDN)
-//		{
-//			// do something
-//		}
-//		if (fault2_status & MAX22190_FAULT2_FAULT8CK)
-//		{
-//			// do something
-//		}
-//	}
-//}
-
 void DigitalInput_VerifyConfiguration(void) {
 	MAX22190_Device_t *dev = &DI_Devices[DI_DeviceIndex];
 	MAX22190_ReadRegister(dev, MAX22190_FAULT1EN_ADDR);
@@ -413,6 +370,7 @@ void DigitalInput_VerifyConfiguration(void) {
 	MAX22190_ReadRegister(dev, MAX22190_GPO_ADDR);
 }
 
-bool DigitalInput_HasFault(void) {
-    return DI_FaultFlag;
+bool DigitalInput_IsOK(void) {
+	// Return true only if BOTH are false
+	return !DI_FaultFlag && !DI_CrcError;
 }
