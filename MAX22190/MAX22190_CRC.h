@@ -55,7 +55,7 @@
  ******************** Function Prototypes (Declarations) ***********************
  ******************************************************************************/
 
-uint8_t calculate_crc5(const uint8_t *data);
+uint8_t MAX22190_CalculateCRC(const uint8_t *data);
 
 /**
  * MAX22190 @}

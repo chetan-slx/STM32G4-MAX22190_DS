@@ -6,10 +6,11 @@
  */
 
 
-#include "5bit_CRC.h"
+#include "MAX22190_CRC.h"
 
 
-uint8_t calculate_crc5(const uint8_t *data) {
+uint8_t MAX22190_CalculateCRC(const uint8_t *data)
+{
 	int length = 19;             // number of bits to process
 	uint8_t crc_step, tmp;
 	uint8_t crc_init = 0x7;      // initial CRC seed = 00111b
