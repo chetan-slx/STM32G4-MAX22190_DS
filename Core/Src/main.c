@@ -45,7 +45,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+bool DI_OK = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,6 +98,8 @@ int main(void)
   while (1)
   {
 	  Read_DigitalInput_DMA();
+	  DigitalInput_CheckFaultStatus();
+	  DI_OK = DigitalInput_IsOK();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
